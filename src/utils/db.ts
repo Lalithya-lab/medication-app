@@ -46,29 +46,82 @@
 
 
 
+// import mongoose from "mongoose";
+
+// const MONGO_URI = process.env.MONGO_URI;
+
+// if (!MONGO_URI) {
+//   throw new Error("MONGO_URI is not defined in environment variables");
+// }
+
+// const connectDB = async () => {
+//   try {
+//     if (mongoose.connection.readyState === 1) {
+//       console.log("MongoDB already connected");
+//       return;
+//     }
+
+//     await mongoose.connect(MONGO_URI, {
+//       dbName: "medicationDB",
+//     });
+
+//     console.log("MongoDB connected successfully");
+//   } catch (error) {
+//     console.error("MongoDB connection error:", error);
+//     process.exit(1);
+//   }
+// };
+
+// export default connectDB;
+
+
+
+
 import mongoose from "mongoose";
 
 const MONGO_URI = process.env.MONGO_URI;
 
 if (!MONGO_URI) {
-  throw new Error("MONGO_URI is not defined in environment variables");
+  throw new Error("❌ MONGO_URI is not defined in environment variables");
+}
+
+declare global {
+  var mongooseConnection: {
+    conn: typeof mongoose | null;
+    promise: Promise<typeof mongoose> | null;
+  };
+}
+
+// Global caching (prevents multiple connections in dev environments)
+let cached = global.mongooseConnection;
+
+if (!cached) {
+  cached = global.mongooseConnection = {
+    conn: null,
+    promise: null,
+  };
 }
 
 const connectDB = async () => {
-  try {
-    if (mongoose.connection.readyState === 1) {
-      console.log("MongoDB already connected");
-      return;
-    }
+  if (cached.conn) {
+    console.log("✅ MongoDB already connected");
+    return cached.conn;
+  }
 
-    await mongoose.connect(MONGO_URI, {
-      dbName: "medicationDB",
+  if (!cached.promise) {
+    cached.promise = mongoose.connect(MONGO_URI, {
+      dbName: "medication-app",
+      bufferCommands: false,
     });
+  }
 
-    console.log("MongoDB connected successfully");
+  try {
+    cached.conn = await cached.promise;
+    console.log("✅ MongoDB connected successfully");
+    return cached.conn;
   } catch (error) {
-    console.error("MongoDB connection error:", error);
-    process.exit(1);
+    console.error("❌ MongoDB connection error:", error);
+    throw error;
   }
 };
 

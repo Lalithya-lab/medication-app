@@ -127,19 +127,65 @@
 
 
 
-import { NextResponse } from "next/server"; // ✅ Ensure this is only imported once
+// import { NextResponse } from "next/server"; // ✅ Ensure this is only imported once
+// import bcrypt from "bcryptjs";
+// import { MongoClient } from "mongodb";
+
+// const uri = process.env.MONGO_URI;
+// if (!uri) {
+//   throw new Error("MONGODB_URI is not defined in environment variables");
+// }
+
+// const client = new MongoClient(uri);
+
+// export async function POST(req: Request) {
+//   try {
+//     const { email, password } = await req.json();
+
+//     console.log("Received registration request:", { email });
+
+//     if (!email || !password) {
+//       return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
+//     }
+
+//     await client.connect();
+//     const db = client.db("medicationDB");
+//     const usersCollection = db.collection("users");
+
+//     const existingUser = await usersCollection.findOne({ email });
+//     if (existingUser) {
+//       await client.close();
+//       return NextResponse.json({ error: "User already exists" }, { status: 400 });
+//     }
+
+//     const hashedPassword = await bcrypt.hash(password, 10);
+//     await usersCollection.insertOne({ email, password: hashedPassword });
+
+//     await client.close();
+
+//     return NextResponse.json({ message: "User registered successfully" }, { status: 201 });
+
+//   } catch (error) {
+//     console.error("Registration Error:", error);
+//     await client.close();
+//     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+//   }
+// }
+
+
+
+
+
+
+
+import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { MongoClient } from "mongodb";
-
-const uri = process.env.MONGO_URI;
-if (!uri) {
-  throw new Error("MONGODB_URI is not defined in environment variables");
-}
-
-const client = new MongoClient(uri);
+import connectDB from "../../../utils/db";
+import User from "../../../models/User"; // Mongoose User model
 
 export async function POST(req: Request) {
   try {
+    await connectDB(); // Connect to MongoDB via mongoose
     const { email, password } = await req.json();
 
     console.log("Received registration request:", { email });
@@ -148,26 +194,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
     }
 
-    await client.connect();
-    const db = client.db("medicationDB");
-    const usersCollection = db.collection("users");
-
-    const existingUser = await usersCollection.findOne({ email });
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
-      await client.close();
       return NextResponse.json({ error: "User already exists" }, { status: 400 });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    await usersCollection.insertOne({ email, password: hashedPassword });
-
-    await client.close();
+    const newUser = new User({ email, password: hashedPassword });
+    await newUser.save();
 
     return NextResponse.json({ message: "User registered successfully" }, { status: 201 });
-
   } catch (error) {
     console.error("Registration Error:", error);
-    await client.close();
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
